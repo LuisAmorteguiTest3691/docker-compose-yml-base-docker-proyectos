@@ -1,0 +1,119 @@
+services:
+    laravel_2.test: # Cambié el nombre del servicio para el nuevo proyecto
+        build:
+            context: './vendor/laravel/sail/runtimes/8.3'
+            dockerfile: Dockerfile
+            args:
+                WWWGROUP: '${WWWGROUP}'
+        image: 'sail-8.3/app'
+        extra_hosts:
+            - 'host.docker.internal:host-gateway'
+        ports:
+            - '8083:80' # Cambié el puerto HTTP al 8083
+            - '5174:5173' # Cambié el puerto Vite al 5174
+        environment:
+            WWWUSER: '${WWWUSER}'
+            LARAVEL_SAIL: 1
+            XDEBUG_MODE: '${SAIL_XDEBUG_MODE:-off}'
+            XDEBUG_CONFIG: '${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}'
+            IGNITION_LOCAL_SITES_PATH: '${PWD}'
+        volumes:
+            - '.:/var/www/html'
+        networks:
+            - sail
+        depends_on:
+            - mysql_2
+            - redis_2
+            - meilisearch_2
+            - mailpit_2
+            - selenium_2
+
+    mysql_2: # Cambié el nombre del servicio MySQL
+        image: 'mysql/mysql-server:8.0'
+        ports:
+            - '3309:3306' # Cambié el puerto MySQL al 3309
+        environment:
+            MYSQL_ROOT_PASSWORD: '${DB_PASSWORD}'
+            MYSQL_ROOT_HOST: '%'
+            MYSQL_DATABASE: '${DB_DATABASE}'
+            MYSQL_USER: '${DB_USERNAME}'
+            MYSQL_PASSWORD: '${DB_PASSWORD}'
+            MYSQL_ALLOW_EMPTY_PASSWORD: 1
+        volumes:
+            - 'sail-mysql-2:/var/lib/mysql' # Cambié el nombre del volumen
+            - './vendor/laravel/sail/database/mysql/create-testing-database.sh:/docker-entrypoint-initdb.d/10-create-testing-database.sh'
+        networks:
+            - sail
+        healthcheck:
+            test:
+                - CMD
+                - mysqladmin
+                - ping
+                - '-p${DB_PASSWORD}'
+            retries: 3
+            timeout: 5s
+
+    redis_2: # Cambié el nombre del servicio Redis
+        image: 'redis:alpine'
+        ports:
+            - '6383:6379' # Cambié el puerto Redis al 6383
+        volumes:
+            - 'sail-redis-2:/data' # Cambié el nombre del volumen
+        networks:
+            - sail
+        healthcheck:
+            test:
+                - CMD
+                - redis-cli
+                - ping
+            retries: 3
+            timeout: 5s
+
+    meilisearch_2: # Cambié el nombre del servicio Meilisearch
+        image: 'getmeili/meilisearch:latest'
+        ports:
+            - '7703:7700' # Cambié el puerto Meilisearch al 7703
+        environment:
+            MEILI_NO_ANALYTICS: '${MEILISEARCH_NO_ANALYTICS:-false}'
+        volumes:
+            - 'sail-meilisearch-2:/meili_data' # Cambié el nombre del volumen
+        networks:
+            - sail
+        healthcheck:
+            test:
+                - CMD
+                - wget
+                - '--no-verbose'
+                - '--spider'
+                - 'http://127.0.0.1:7700/health'
+            retries: 3
+            timeout: 5s
+
+    mailpit_2: # Cambié el nombre del servicio Mailpit
+        image: 'axllent/mailpit:latest'
+        ports:
+            - '1029:1025' # Cambié el puerto SMTP al 1029
+            - '8029:8025' # Cambié el puerto del dashboard al 8029
+        networks:
+            - sail
+
+    selenium_2: # Cambié el nombre del servicio Selenium
+        image: selenium/standalone-chromium
+        extra_hosts:
+            - 'host.docker.internal:host-gateway'
+        volumes:
+            - '/dev/shm:/dev/shm'
+        networks:
+            - sail
+
+networks:
+    sail:
+        driver: bridge
+
+volumes:
+    sail-mysql-2: # Cambié el nombre del volumen MySQL
+        driver: local
+    sail-redis-2: # Cambié el nombre del volumen Redis
+        driver: local
+    sail-meilisearch-2: # Cambié el nombre del volumen Meilisearch
+        driver: local
